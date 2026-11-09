@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Los Oscars de Yury's</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --noche: #0d0b0a;
+    --telon: #17120f;
+    --tarjeta: #1d1713;
+    --borde: #3a2f22;
+    --oro: #e2b857;
+    --oro-claro: #f6e3a8;
+    --oro-oscuro: #a47c2c;
+    --texto: #f3ece0;
+    --tenue: #a89c88;
+    --error: #ff8f7a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(900px 500px at 50% -120px, rgba(226,184,87,.20), transparent 70%),
+      var(--noche);
+    color: var(--texto);
+    font-family: Outfit, system-ui, sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .contenedor { max-width: 720px; margin: 0 auto; padding: 0 16px 140px; }
+
+  header { text-align: center; padding: 44px 0 28px; }
+  .logo { display: inline-block; background: #fff; border-radius: 16px; padding: 10px 18px; margin-bottom: 22px;
+          box-shadow: 0 0 0 1px var(--oro-oscuro), 0 10px 40px rgba(226,184,87,.18); }
+  .logo img { display: block; height: 64px; }
+  .ante { letter-spacing: .42em; text-transform: uppercase; font-size: 12px; color: var(--oro); font-weight: 500; }
+  h1 {
+    font-family: "Playfair Display", serif; font-weight: 800;
+    font-size: clamp(38px, 9vw, 64px); line-height: 1.02; margin: 10px 0 12px;
+    background: linear-gradient(180deg, var(--oro-claro), var(--oro) 55%, var(--oro-oscuro));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 em { font-weight: 600; }
+  .bajada { color: var(--tenue); max-width: 46ch; margin: 0 auto; line-height: 1.5; }
+  .filete { display: flex; align-items: center; gap: 12px; margin: 26px auto 0; max-width: 260px; color: var(--oro); }
+  .filete::before, .filete::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--oro-oscuro)); }
+  .filete::after { transform: scaleX(-1); }
+
+  .tarjeta {
+    background: linear-gradient(180deg, var(--tarjeta), var(--telon));
+    border: 1px solid var(--borde); border-radius: 14px;
+    padding: 18px; margin-top: 14px;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 4px 16px; align-items: center;
+    transition: border-color .2s;
+  }
+  .tarjeta.lista { border-color: var(--oro-oscuro); }
+  .num {
+    grid-row: span 2; font-family: "Playfair Display", serif; font-style: italic; font-weight: 600;
+    font-size: 40px; color: var(--oro); width: 38px; text-align: center; line-height: 1;
+  }
+  .tarjeta h2 { font-family: "Playfair Display", serif; font-weight: 600; font-size: 21px; margin: 0; }
+  .sub { color: var(--tenue); font-size: 14px; grid-column: 2; }
+  .elegido { grid-column: 2 / -1; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--borde); font-weight: 500; color: var(--oro-claro); }
+  .elegido small { display: block; color: var(--tenue); font-weight: 300; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+  .tarjeta .btn { grid-row: span 2; grid-column: 3; }
+
+  .btn {
+    font: inherit; font-weight: 500; cursor: pointer; border-radius: 999px;
+    padding: 11px 22px; border: 1px solid var(--oro); color: #1a1205;
+    background: linear-gradient(180deg, var(--oro-claro), var(--oro));
+    transition: transform .12s, filter .12s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: scale(.97); }
+  .btn.sec { background: transparent; color: var(--oro); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; filter: none; }
+  .btn:focus-visible, .op:focus-visible, input:focus-visible { outline: 2px solid var(--oro-claro); outline-offset: 2px; }
+
+  .quien { text-align: center; padding: 22px 18px; display: block; }
+  .quien p { margin: 0 0 12px; color: var(--tenue); }
+  .quien strong { display: block; font-family: "Playfair Display", serif; font-size: 24px; font-weight: 600; color: var(--texto); margin-bottom: 12px; }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: rgba(13,11,10,.92); backdrop-filter: blur(8px); border-top: 1px solid var(--borde);
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .barra div { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 14px; justify-content: space-between; }
+  .progreso { color: var(--tenue); font-size: 14px; }
+  .progreso b { color: var(--oro); font-weight: 600; }
+
+  .fondo { position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,.72);
+           display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .dlg {
+    display: flex; flex-direction: column;
+    width: min(520px, 100%); height: min(640px, 100%);
+    border: 1px solid var(--oro-oscuro); border-radius: 16px;
+    background: var(--telon); color: var(--texto); overflow: hidden;
+  }
+  body.modal { overflow: hidden; }
+  .dlg header { padding: 18px 18px 12px; text-align: left; }
+  .dlg h3 { font-family: "Playfair Display", serif; font-size: 22px; margin: 4px 0 12px; font-weight: 600; }
+  .dlg input {
+    width: 100%; font: inherit; color: var(--texto); background: var(--noche);
+    border: 1px solid var(--borde); border-radius: 10px; padding: 12px 14px;
+  }
+  .lista-op { overflow-y: auto; flex: 1; padding: 0 10px; }
+  .op {
+    display: block; width: 100%; text-align: left; font: inherit; color: var(--texto);
+    background: none; border: 0; border-bottom: 1px solid rgba(58,47,34,.6);
+    padding: 13px 8px; cursor: pointer; border-radius: 6px;
+  }
+  .op:hover { background: rgba(226,184,87,.10); }
+  .op.sel { color: var(--oro); font-weight: 500; }
+  .op:disabled { color: #6a6155; cursor: not-allowed; background: none; }
+  .op span { float: right; font-size: 12px; color: var(--tenue); }
+  .dlg footer { padding: 12px 18px; border-top: 1px solid var(--borde); text-align: right; }
+  .vacio { padding: 24px 8px; color: var(--tenue); text-align: center; }
+
+  .aviso { text-align: center; margin-top: 18px; color: var(--tenue); min-height: 1.4em; }
+  .aviso.error { color: var(--error); }
+  .demo { text-align: center; font-size: 13px; background: #3a2a10; color: var(--oro-claro); padding: 8px 12px; }
+
+  .gracias { text-align: center; padding: 60px 0; }
+  .gracias .estatua { font-size: 72px; }
+  .gracias h2 { font-family: "Playfair Display", serif; font-size: 34px; margin: 10px 0; color: var(--oro); }
+  .gracias ul { list-style: none; padding: 0; margin: 24px auto 0; max-width: 420px; text-align: left; }
+  .gracias li { padding: 10px 0; border-bottom: 1px solid var(--borde); }
+  .gracias li small { display: block; color: var(--tenue); }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 520px) {
+    .tarjeta { grid-template-columns: auto 1fr; }
+    .sub { grid-row: 2; }
+    .elegido { grid-column: 1 / -1; grid-row: 3; }
+    .tarjeta .btn { grid-column: 1 / -1; grid-row: 4; margin-top: 12px; }
+    .num { font-size: 34px; width: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="demo" id="demo" hidden>Modo demostración: falta configurar API_URL, los votos no se guardan.</div>
+
+<div class="contenedor">
+  <header>
+    <!-- LOGO: está incrustado en la página. Para cambiarlo, reemplazá el src por otro archivo (ej. "logo.png"). -->
+    <div class="logo"><img alt="Yury's Free Shop" src="data:image/png;base64,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"></div>
+    <div class="ante">Votación 2026</div>
+    <h1>Los Oscars <em>de Yury's</em></h1>
+    <p class="bajada">Elegí al compañero o compañera que mejor representa cada uno de nuestros cinco valores.</p>
+    <div class="filete">★</div>
+  </header>
+
+  <main id="votacion">
+    <section class="tarjeta quien" id="quien">
+      <p id="quienTxt">Para empezar, decinos quién sos.</p>
+      <strong id="quienNombre" hidden></strong>
+      <button class="btn" id="btnQuien">Elegir mi nombre</button>
+    </section>
+
+    <div id="categorias"></div>
+    <p class="aviso" id="aviso" role="status"></p>
+  </main>
+
+  <section class="gracias" id="gracias" hidden>
+    <div class="estatua">🏆</div>
+    <h2>¡Tu voto quedó registrado!</h2>
+    <p class="bajada">Gracias por participar. Nos vemos en la ceremonia.</p>
+    <ul id="resumen"></ul>
+  </section>
+</div>
+
+<div class="barra" id="barra">
+  <div>
+    <span class="progreso"><b id="cuenta">0</b> de 5 categorías</span>
+    <button class="btn" id="btnEnviar" disabled>Enviar mis votos</button>
+  </div>
+</div>
+
+<div class="fondo" id="dlg" hidden>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitulo">
+    <header>
+      <div class="ante" id="dlgAnte"></div>
+      <h3 id="dlgTitulo"></h3>
+      <input id="buscar" type="search" placeholder="Buscar por nombre o apellido…" autocomplete="off">
+    </header>
+    <div class="lista-op" id="opciones"></div>
+    <footer><button class="btn sec" id="dlgCerrar">Cancelar</button></footer>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIGURACIÓN ============ */
+// Pegá acá la URL de la aplicación web de Apps Script (termina en /exec).
+const API_URL = "https://script.google.com/macros/s/AKfycbyntyKZWR2j9pX_NsgeYmWJLchlMjgNpaL4lP5YN6zoZAwE2cgje63RESPhfcxxKnXY/exec";
+
+const CATEGORIAS = [
+  { titulo: "Actitud de Servicio",   sub: "Orientación a las personas" },
+  { titulo: "Espíritu de Equipo",    sub: "Colaboración y compañerismo" },
+  { titulo: "Compromiso Yury's",     sub: "Responsabilidad y calidad" },
+  { titulo: "Espíritu de Evolución", sub: "Innovación y mejora continua" },
+  { titulo: "Confianza",             sub: "Integridad y respeto" },
+];
+// Lista de funcionarios. Si el Google Sheets responde, se usa la hoja "Funcionarios" en su lugar.
+const FUNCIONARIOS = [
+  "Adao Martins Gutierres Flores",
+  "Alisson Sabrina Barboza Mora",
+  "Amanda Karolina Mendez Gomez",
+  "Ana Celia Moura dos Santos",
+  "Ana Maria Gonzalez Valdez",
+  "Ana Patricia Liforna Maciel",
+  "Andrea Natalia Borges de Barros",
+  "Braian Gerardo Piñeiro Prestes",
+  "Breison Erlay da Silva Moreira",
+  "Bruna Yanaina Melo Goncalvez",
+  "Bryan Nicolas Barrios Cal",
+  "Caetano Couto Saravia",
+  "Caren Leticia Nuñez Fernandez",
+  "Carla Luciana Sosa Rezende",
+  "Carla Sabrina Segui Carballo",
+  "Carlos Ernesto Rodriguez Casaravilla",
+  "Cassia Talia Pereira Dias",
+  "Catherin Daiana Echeverriaga Lanz",
+  "Claudia Paola Novo Silveira",
+  "Claudia Vanessa Borges de Barros",
+  "Cristian Fabian Silveira Preto",
+  "David Cantos Rivero",
+  "Diolvis Furones Matos",
+  "Edgar Gabriel Viera Tejera",
+  "Eduardo da Silva Silva",
+  "Elias Morales Ramos",
+  "Erick del Risco Bautista",
+  "Esteban Rodrigo Vargas Leites",
+  "Fabiana Vanessa Pavan Braga",
+  "Fabio Daniel Lopez Pereira",
+  "Facundo Agustin Ferreyra Castro",
+  "Federico Espinosa Correa",
+  "Gerardo Enrique de Mello Castrillon",
+  "Gonzalo Daniel Rodriguez de Mello",
+  "Gonzalo Umpierre Clock",
+  "Gustavo Rafael da Rosa Bottino",
+  "Hugo Romero Viana",
+  "Jhon Marcelo Perez Olivera",
+  "Jonatan Silveira Rosadilla",
+  "Jorge Pacheco Mello",
+  "Joselito Severo Silva",
+  "Julio Gularte Aristizabal",
+  "Karen Giovana Borba Barrios",
+  "Karina Marcela Suarez Gomez",
+  "Kimberly Daniela Costa Gonzalez",
+  "Laura Estefani Hernandez Fontes",
+  "Leonardo Martin Silveira Rodriguez",
+  "Leticia Figueroa Coppa",
+  "Lucas Rodriguez Di Falco",
+  "Luis Alberto Machado Marquez",
+  "Mara Gisel Sosa Suarez",
+  "Marcelo Severo Rodrigues",
+  "Marcia Lorena Goncalves Jaureguy",
+  "Maria Angelica Duarte Suarez",
+  "Maria Eugenia Portillo Ambiani",
+  "Maria del Mar Padilla Martinez",
+  "Mary Susana Silveira Brochi",
+  "Matias Adrian Techera Acheverriaga",
+  "Matias Montado Texeira",
+  "Milton Gabriel Pereira da Rosa",
+  "Miriam Yoselin Oliva Gonzalez",
+  "Natali Luciana da Silva Gonzalvez",
+  "Nelson Mauricio Couto Nuñez",
+  "Pablo Alberto Sandin Gonzalez",
+  "Paloma de Mello Lopez",
+  "Pamela Florencia Correa da Silva",
+  "Pamela Jisela Montero Andrade",
+  "Paulo David Fernandez Tacuari",
+  "Rosana Jacqueline Palombo Mello",
+  "Ruben Allan da Fontoura Duarte",
+  "Sandra Rosa Andrade",
+  "Sergio Jesus da Silva Moreyra",
+  "Sofia Leal Garcia",
+  "Tatiana Micaela Porto da Silva",
+  "Vania Canedo Araujo",
+  "Vera Elena Ferreira Rodriguez",
+  "William Andres Pereira Vidal",
+  "Yeferson Adrian Bueno Martinez",
+  "Yenifer Tejera Rodriguez",
+  "Yennifer Geanina Rodriguez Viera",
+  "Yonatan Octavio Suarez Dornel",
+  "Yonatan Rodriguez Gonzalez"
+];
+/* ======================================= */
+
+const $ = id => document.getElementById(id);
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+let funcionarios = FUNCIONARIOS.slice(), yaVotaron = new Set();
+let votante = null;
+const votos = CATEGORIAS.map(() => null);
+let dlgModo = null; // "quien" o índice de categoría
+
+function pintarCategorias() {
+  $("categorias").innerHTML = "";
+  CATEGORIAS.forEach((c, i) => {
+    const s = document.createElement("section");
+    s.className = "tarjeta" + (votos[i] ? " lista" : "");
+    s.innerHTML = `
+      <div class="num">${i + 1}</div>
+      <h2></h2>
+      <button class="btn ${votos[i] ? "sec" : ""}">${votos[i] ? "Cambiar" : "Votar"}</button>
+      <div class="sub"></div>
+      ${votos[i] ? `<div class="elegido"><small>Tu voto</small><span></span></div>` : ""}`;
+    s.querySelector("h2").textContent = c.titulo;
+    s.querySelector(".sub").textContent = c.sub;
+    if (votos[i]) s.querySelector(".elegido span").textContent = votos[i];
+    const b = s.querySelector("button");
+    b.disabled = !votante;
+    b.setAttribute("aria-label", (votos[i] ? "Cambiar voto de " : "Votar en ") + c.titulo);
+    b.onclick = () => abrir(i);
+    $("categorias").appendChild(s);
+  });
+  const n = votos.filter(Boolean).length;
+  $("cuenta").textContent = n;
+  $("btnEnviar").disabled = !(votante && n === CATEGORIAS.length);
+}
+
+function pintarQuien() {
+  $("quienTxt").textContent = votante ? "Estás votando como" : "Para empezar, decinos quién sos.";
+  $("quienNombre").hidden = !votante;
+  $("quienNombre").textContent = votante || "";
+  $("btnQuien").textContent = votante ? "No soy yo" : "Elegir mi nombre";
+  $("btnQuien").className = "btn" + (votante ? " sec" : "");
+}
+
+function abrir(modo) {
+  dlgModo = modo;
+  const esQuien = modo === "quien";
+  $("dlgAnte").textContent = esQuien ? "Identificación" : `Categoría ${modo + 1} · ${CATEGORIAS[modo].sub}`;
+  $("dlgTitulo").textContent = esQuien ? "¿Quién sos?" : CATEGORIAS[modo].titulo;
+  $("buscar").value = "";
+  pintarOpciones();
+  $("dlg").hidden = false;
+  document.body.classList.add("modal");
+  $("opciones").scrollTop = 0;
+  $("buscar").focus();
+}
+
+function pintarOpciones() {
+  const q = norm($("buscar").value.trim());
+  const esQuien = dlgModo === "quien";
+  const caja = $("opciones");
+  caja.innerHTML = "";
+  const lista = funcionarios.filter(n => (esQuien || n !== votante) && norm(n).includes(q));
+  if (!lista.length) { caja.innerHTML = '<div class="vacio">No hay nadie con ese nombre.</div>'; return; }
+  lista.forEach(n => {
+    const b = document.createElement("button");
+    b.className = "op";
+    b.textContent = n;
+    if (esQuien && yaVotaron.has(n)) {
+      b.disabled = true;
+      b.insertAdjacentHTML("beforeend", "<span>ya votó</span>");
+    }
+    if (!esQuien && votos[dlgModo] === n) b.classList.add("sel");
+    b.onclick = () => elegir(n);
+    caja.appendChild(b);
+  });
+}
+
+function elegir(nombre) {
+  if (dlgModo === "quien") {
+    votante = nombre;
+    votos.forEach((v, i) => { if (v === nombre) votos[i] = null; }); // no se puede votar a uno mismo
+    pintarQuien();
+    aviso("");
+  } else {
+    votos[dlgModo] = nombre;
+  }
+  cerrar();
+  pintarCategorias();
+}
+
+function cerrar() {
+  $("dlg").hidden = true;
+  document.body.classList.remove("modal");
+}
+
+function aviso(txt, error) {
+  $("aviso").textContent = txt;
+  $("aviso").className = "aviso" + (error ? " error" : "");
+}
+
+async function cargar() {
+  if (!API_URL) { $("demo").hidden = false; return; }
+  try {
+    const r = await (await fetch(API_URL)).json();
+    if (r.funcionarios && r.funcionarios.length) {
+      funcionarios = r.funcionarios.slice().sort((a, b) => a.localeCompare(b, "es"));
+    }
+    yaVotaron = new Set(r.yaVotaron || []);
+    if (!$("dlg").hidden) pintarOpciones();
+  } catch (e) {
+    // Sin respuesta del Sheets: se sigue con la lista incrustada; el servidor valida igual al enviar.
+  }
+}
+
+async function enviar() {
+  const btn = $("btnEnviar");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  aviso("");
+  try {
+    let r = { ok: true };
+    if (API_URL) {
+      // Sin cabecera Content-Type a propósito: así Apps Script acepta el pedido sin preflight CORS.
+      r = await (await fetch(API_URL, { method: "POST", body: JSON.stringify({ votante, votos }) })).json();
+    }
+    if (!r.ok) throw new Error(r.error || "No se pudo registrar el voto.");
+    $("resumen").innerHTML = "";
+    CATEGORIAS.forEach((c, i) => {
+      const li = document.createElement("li");
+      const s = document.createElement("small"); s.textContent = c.titulo;
+      li.append(s, votos[i]);
+      $("resumen").appendChild(li);
+    });
+    $("votacion").hidden = true; $("barra").hidden = true; $("gracias").hidden = false;
+    scrollTo({ top: 0 });
+  } catch (e) {
+    aviso(e instanceof TypeError || e instanceof SyntaxError
+      ? "No se pudo conectar. Tu voto no se envió; probá de nuevo." : e.message, true);
+    btn.textContent = "Enviar mis votos"; btn.disabled = false;
+  }
+}
+
+$("btnQuien").onclick = () => abrir("quien");
+$("btnEnviar").onclick = enviar;
+$("dlgCerrar").onclick = cerrar;
+$("buscar").oninput = pintarOpciones;
+$("dlg").addEventListener("click", e => { if (e.target === $("dlg")) cerrar(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("dlg").hidden) cerrar(); });
+
+pintarQuien();
+pintarCategorias();
+cargar();
+</script>
+</body>
+</html>
