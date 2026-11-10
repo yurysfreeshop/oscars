@@ -83,6 +83,16 @@
 
   .quien { text-align: center; padding: 22px 18px; display: block; }
   .quien p { margin: 0 0 12px; color: var(--tenue); }
+  .quien form { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .quien form p, .quien form small { flex-basis: 100%; margin: 0; }
+  .quien form small { color: var(--tenue); font-size: 13px; }
+  .quien input {
+    font: inherit; font-size: 18px; letter-spacing: .06em; text-align: center; color: var(--texto);
+    background: var(--noche); border: 1px solid var(--borde); border-radius: 999px;
+    padding: 10px 16px; width: 100%; max-width: 230px; min-width: 0;
+  }
+  .quien .aviso { margin: 12px 0 0; min-height: 0; }
+  .quien .aviso:empty { display: none; }
   .quien strong { display: block; font-family: "Playfair Display", serif; font-size: 24px; font-weight: 600; color: var(--texto); margin-bottom: 12px; }
 
   .barra {
@@ -159,9 +169,18 @@
 
   <main id="votacion">
     <section class="tarjeta quien" id="quien">
-      <p id="quienTxt">Para empezar, decinos quién sos.</p>
-      <strong id="quienNombre" hidden></strong>
-      <button class="btn" id="btnQuien">Elegir mi nombre</button>
+      <form id="ingreso" novalidate>
+        <p><label for="cedula">Para empezar, ingresá tu cédula.</label></p>
+        <input id="cedula" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="Ej.: 1.234.567-8">
+        <button class="btn" id="btnIngresar">Ingresar</button>
+        <small>Con puntos y guion o sin ellos, incluyendo el dígito verificador.</small>
+      </form>
+      <div id="identificado" hidden>
+        <p id="quienTxt">Estás votando como</p>
+        <strong id="quienNombre"></strong>
+        <button class="btn sec" id="btnSalir" type="button">No soy yo</button>
+      </div>
+      <p class="aviso error" id="quienError" role="alert"></p>
     </section>
 
     <div id="categorias"></div>
@@ -297,10 +316,16 @@ const FUNCIONARIOS = [
 const $ = id => document.getElementById(id);
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-let funcionarios = FUNCIONARIOS.slice(), yaVotaron = new Set();
-let votante = null;
+let funcionarios = FUNCIONARIOS.slice();
+let votante = null, cedula = null;
 const votos = CATEGORIAS.map(() => null);
-let dlgModo = null; // "quien" o índice de categoría
+let catAbierta = null;
+
+// Sin cabecera Content-Type a propósito: así Apps Script acepta el pedido sin preflight CORS.
+async function api(datos) {
+  return (await fetch(API_URL, { method: "POST", body: JSON.stringify(datos) })).json();
+}
+const sinConexion = e => e instanceof TypeError || e instanceof SyntaxError;
 
 function pintarCategorias() {
   $("categorias").innerHTML = "";
@@ -328,18 +353,46 @@ function pintarCategorias() {
 }
 
 function pintarQuien() {
-  $("quienTxt").textContent = votante ? "Estás votando como" : "Para empezar, decinos quién sos.";
-  $("quienNombre").hidden = !votante;
+  $("ingreso").hidden = !!votante;
+  $("identificado").hidden = !votante;
   $("quienNombre").textContent = votante || "";
-  $("btnQuien").textContent = votante ? "No soy yo" : "Elegir mi nombre";
-  $("btnQuien").className = "btn" + (votante ? " sec" : "");
 }
 
-function abrir(modo) {
-  dlgModo = modo;
-  const esQuien = modo === "quien";
-  $("dlgAnte").textContent = esQuien ? "Identificación" : `Categoría ${modo + 1} · ${CATEGORIAS[modo].sub}`;
-  $("dlgTitulo").textContent = esQuien ? "¿Quién sos?" : CATEGORIAS[modo].titulo;
+async function ingresar(ev) {
+  ev.preventDefault();
+  const btn = $("btnIngresar");
+  if (btn.disabled) return;
+  const num = $("cedula").value.replace(/\D/g, "");
+  $("quienError").textContent = "";
+  if (num.length < 6) { $("quienError").textContent = "Escribí tu número de cédula completo."; return; }
+  btn.disabled = true; btn.textContent = "Verificando…";
+  try {
+    const r = API_URL ? await api({ accion: "ingresar", cedula: num })
+                      : { ok: true, nombre: "Votante de Prueba", yaVoto: false };
+    if (!r.ok) throw new Error(r.error || "No se pudo verificar la cédula.");
+    if (r.yaVoto) throw new Error(r.nombre + ": ya hay un voto registrado con tu cédula. Si no fuiste vos, avisale a quien organiza la votación.");
+    votante = r.nombre; cedula = num;
+    $("cedula").value = "";
+    pintarQuien(); pintarCategorias(); aviso("");
+  } catch (e) {
+    $("quienError").textContent = sinConexion(e) ? "No se pudo conectar. Probá de nuevo." : e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Ingresar";
+  }
+}
+
+function salir() {
+  votante = null; cedula = null;
+  votos.fill(null);
+  aviso("");
+  pintarQuien(); pintarCategorias();
+  $("cedula").focus();
+}
+
+function abrir(i) {
+  catAbierta = i;
+  $("dlgAnte").textContent = `Categoría ${i + 1} · ${CATEGORIAS[i].sub}`;
+  $("dlgTitulo").textContent = CATEGORIAS[i].titulo;
   $("buscar").value = "";
   pintarOpciones();
   $("dlg").hidden = false;
@@ -350,36 +403,22 @@ function abrir(modo) {
 
 function pintarOpciones() {
   const q = norm($("buscar").value.trim());
-  const esQuien = dlgModo === "quien";
   const caja = $("opciones");
   caja.innerHTML = "";
-  const lista = funcionarios.filter(n => (esQuien || n !== votante) && norm(n).includes(q));
+  const lista = funcionarios.filter(n => norm(n).includes(q));
   if (!lista.length) { caja.innerHTML = '<div class="vacio">No hay nadie con ese nombre.</div>'; return; }
   lista.forEach(n => {
     const b = document.createElement("button");
     b.className = "op";
     b.textContent = n;
-    if (esQuien && yaVotaron.has(n)) {
+    if (n === votante) { // uno mismo se ve en la lista, pero no se puede elegir
       b.disabled = true;
-      b.insertAdjacentHTML("beforeend", "<span>ya votó</span>");
+      b.insertAdjacentHTML("beforeend", "<span>sos vos</span>");
     }
-    if (!esQuien && votos[dlgModo] === n) b.classList.add("sel");
-    b.onclick = () => elegir(n);
+    if (votos[catAbierta] === n) b.classList.add("sel");
+    b.onclick = () => { votos[catAbierta] = n; cerrar(); pintarCategorias(); };
     caja.appendChild(b);
   });
-}
-
-function elegir(nombre) {
-  if (dlgModo === "quien") {
-    votante = nombre;
-    votos.forEach((v, i) => { if (v === nombre) votos[i] = null; }); // no se puede votar a uno mismo
-    pintarQuien();
-    aviso("");
-  } else {
-    votos[dlgModo] = nombre;
-  }
-  cerrar();
-  pintarCategorias();
 }
 
 function cerrar() {
@@ -399,7 +438,6 @@ async function cargar() {
     if (r.funcionarios && r.funcionarios.length) {
       funcionarios = r.funcionarios.slice().sort((a, b) => a.localeCompare(b, "es"));
     }
-    yaVotaron = new Set(r.yaVotaron || []);
     if (!$("dlg").hidden) pintarOpciones();
   } catch (e) {
     // Sin respuesta del Sheets: se sigue con la lista incrustada; el servidor valida igual al enviar.
@@ -411,11 +449,7 @@ async function enviar() {
   btn.disabled = true; btn.textContent = "Enviando…";
   aviso("");
   try {
-    let r = { ok: true };
-    if (API_URL) {
-      // Sin cabecera Content-Type a propósito: así Apps Script acepta el pedido sin preflight CORS.
-      r = await (await fetch(API_URL, { method: "POST", body: JSON.stringify({ votante, votos }) })).json();
-    }
+    const r = API_URL ? await api({ accion: "votar", cedula, votos }) : { ok: true };
     if (!r.ok) throw new Error(r.error || "No se pudo registrar el voto.");
     $("resumen").innerHTML = "";
     CATEGORIAS.forEach((c, i) => {
@@ -425,15 +459,16 @@ async function enviar() {
       $("resumen").appendChild(li);
     });
     $("votacion").hidden = true; $("barra").hidden = true; $("gracias").hidden = false;
+    cedula = null;
     scrollTo({ top: 0 });
   } catch (e) {
-    aviso(e instanceof TypeError || e instanceof SyntaxError
-      ? "No se pudo conectar. Tu voto no se envió; probá de nuevo." : e.message, true);
+    aviso(sinConexion(e) ? "No se pudo conectar. Tu voto no se envió; probá de nuevo." : e.message, true);
     btn.textContent = "Enviar mis votos"; btn.disabled = false;
   }
 }
 
-$("btnQuien").onclick = () => abrir("quien");
+$("ingreso").onsubmit = ingresar;
+$("btnSalir").onclick = salir;
 $("btnEnviar").onclick = enviar;
 $("dlgCerrar").onclick = cerrar;
 $("buscar").oninput = pintarOpciones;
