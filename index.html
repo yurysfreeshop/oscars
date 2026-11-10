@@ -47,6 +47,8 @@
   }
   h1 em { font-weight: 600; }
   .bajada { color: var(--tenue); max-width: 46ch; margin: 0 auto; line-height: 1.5; }
+  .plazo { margin: 16px auto 0; font-size: 15px; color: var(--tenue); }
+  .plazo b { color: var(--oro-claro); font-weight: 500; }
   .filete { display: flex; align-items: center; gap: 12px; margin: 26px auto 0; max-width: 260px; color: var(--oro); }
   .filete::before, .filete::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--oro-oscuro)); }
   .filete::after { transform: scaleX(-1); }
@@ -164,6 +166,7 @@
     <div class="ante">Votación 2026</div>
     <h1>Los Oscars <em>de Yury's</em></h1>
     <p class="bajada">Elegí al compañero o compañera que mejor representa cada uno de nuestros cinco valores.</p>
+    <p class="plazo" id="plazo">Podés votar hasta el <b>jueves 19 de noviembre a las 18:00</b>.</p>
     <div class="filete">★</div>
   </header>
 
@@ -186,6 +189,12 @@
     <div id="categorias"></div>
     <p class="aviso" id="aviso" role="status"></p>
   </main>
+
+  <section class="gracias" id="cerrada" hidden>
+    <div class="estatua">🎬</div>
+    <h2>La votación cerró</h2>
+    <p class="bajada">Se pudo votar hasta el jueves 19 de noviembre a las 18:00. ¡Nos vemos en la ceremonia!</p>
+  </section>
 
   <section class="gracias" id="gracias" hidden>
     <div class="estatua">🏆</div>
@@ -217,7 +226,10 @@
 <script>
 /* ============ CONFIGURACIÓN ============ */
 // Pegá acá la URL de la aplicación web de Apps Script (termina en /exec).
-const API_URL = "https://script.google.com/macros/s/AKfycbz1TkHdwNe6X4BNAGrodyVVfEgNS3uZeDR2goNDqES8ULFDAnx9-uLKuFNdbPm7BzV8/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwA1i4EgINOj-lCmgisil7Uo77g4LFdTjHLz8EZXeEzaPkS1ddF21EnJhzfxMnBkyO0/exec";
+
+// Cierre de la votación (hora de Uruguay). El Google Sheets también lo controla por su cuenta.
+const CIERRE = new Date("2026-11-19T18:00:00-03:00");
 
 const CATEGORIAS = [
   { titulo: "Actitud de Servicio",   sub: "Orientación a las personas" },
@@ -369,6 +381,7 @@ async function ingresar(ev) {
   try {
     const r = API_URL ? await api({ accion: "ingresar", cedula: num })
                       : { ok: true, nombre: "Votante de Prueba", yaVoto: false };
+    if (r.cerrada) return cerrarVotacion();
     if (!r.ok) throw new Error(r.error || "No se pudo verificar la cédula.");
     if (r.yaVoto) throw new Error(r.nombre + ": ya hay un voto registrado con tu cédula. Si no fuiste vos, avisale a quien organiza la votación.");
     votante = r.nombre; cedula = num;
@@ -426,6 +439,15 @@ function cerrar() {
   document.body.classList.remove("modal");
 }
 
+// Muestra el cartel de cierre, salvo que la persona ya esté viendo su comprobante de voto.
+function cerrarVotacion() {
+  if (!$("gracias").hidden) return;
+  cerrar();
+  $("votacion").hidden = true; $("barra").hidden = true; $("plazo").hidden = true;
+  $("cerrada").hidden = false;
+}
+const vencida = () => Date.now() >= CIERRE.getTime();
+
 function aviso(txt, error) {
   $("aviso").textContent = txt;
   $("aviso").className = "aviso" + (error ? " error" : "");
@@ -435,6 +457,7 @@ async function cargar() {
   if (!API_URL) { $("demo").hidden = false; return; }
   try {
     const r = await (await fetch(API_URL)).json();
+    if (r.cerrada) return cerrarVotacion();
     if (r.funcionarios && r.funcionarios.length) {
       funcionarios = r.funcionarios.slice().sort((a, b) => a.localeCompare(b, "es"));
     }
@@ -450,6 +473,7 @@ async function enviar() {
   aviso("");
   try {
     const r = API_URL ? await api({ accion: "votar", cedula, votos }) : { ok: true };
+    if (r.cerrada) return cerrarVotacion();
     if (!r.ok) throw new Error(r.error || "No se pudo registrar el voto.");
     $("resumen").innerHTML = "";
     CATEGORIAS.forEach((c, i) => {
@@ -477,6 +501,9 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("dlg").
 
 pintarQuien();
 pintarCategorias();
+if (vencida()) cerrarVotacion();
+// Si la página queda abierta, se cierra sola a la hora indicada.
+else setTimeout(cerrarVotacion, Math.min(CIERRE.getTime() - Date.now(), 2147483647));
 cargar();
 </script>
 </body>
